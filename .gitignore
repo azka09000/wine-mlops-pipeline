@@ -1,0 +1,27 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+
+# MLflow tracking data and artifacts
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Transient model artifacts
+*.pkl
+*.joblib
+models/
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/

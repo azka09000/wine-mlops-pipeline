@@ -4,6 +4,7 @@ import os
 import mlflow
 import mlflow.sklearn
 from mlflow.models import infer_signature
+from mlflow.tracking import MlflowClient
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 
@@ -11,6 +12,8 @@ from src.data import RANDOM_STATE, load_data, split_data, validate_data
 
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 EXPERIMENT_NAME = "Wine-Cultivar-Classification"
+REGISTERED_MODEL_NAME = "WineClassifier"
+CHAMPION_ALIAS = "champion"
 
 PARAM_GRIDS = {
     "RandomForest": [
@@ -99,26 +102,61 @@ def run_experiment(model_family, config_index, params, X_train, y_train):
     return run.info.run_id, metrics
 
 
+def select_best_run(experiment_id):
+    """Return the logged run with the highest val macro F1 (tie-break: lowest val log loss)."""
+    client = MlflowClient()
+    best_runs = client.search_runs(
+        experiment_ids=[experiment_id],
+        filter_string="attributes.status = 'FINISHED'",
+        order_by=["metrics.val_f1_macro DESC", "metrics.val_log_loss ASC"],
+        max_results=1,
+    )
+    if not best_runs:
+        raise RuntimeError("No finished runs found to select a champion from.")
+    return best_runs[0]
+
+
+def register_champion(run_id):
+    """Register the run's model as WineClassifier and point the champion alias at it."""
+    model_version = mlflow.register_model(
+        model_uri=f"runs:/{run_id}/model", name=REGISTERED_MODEL_NAME
+    )
+    client = MlflowClient()
+    client.set_registered_model_alias(
+        REGISTERED_MODEL_NAME, CHAMPION_ALIAS, model_version.version
+    )
+    return model_version
+
+
 def main():
-    """Run the full hyperparameter search and log every configuration to MLflow."""
+    """Run the search, log every configuration, and register the champion model."""
     X, y = load_data()
     validate_data(X, y)
     X_train, _, y_train, _ = split_data(X, y)
 
-    setup_mlflow()
+    experiment = setup_mlflow()
 
-    results = []
     for model_family, grid in PARAM_GRIDS.items():
         for config_index, params in enumerate(grid, start=1):
             run_id, metrics = run_experiment(
                 model_family, config_index, params, X_train, y_train
             )
-            results.append((model_family, config_index, run_id, metrics))
             print(
                 f"{model_family}-config-{config_index}: "
                 f"val_f1_macro={metrics['val_f1_macro']:.4f}  run_id={run_id}"
             )
-    return results
+
+    best_run = select_best_run(experiment.experiment_id)
+    model_version = register_champion(best_run.info.run_id)
+    print(
+        f"\nChampion: {best_run.info.run_name} "
+        f"(val_f1_macro={best_run.data.metrics['val_f1_macro']:.4f}, "
+        f"val_log_loss={best_run.data.metrics['val_log_loss']:.4f})"
+    )
+    print(
+        f"Registered as {REGISTERED_MODEL_NAME} version {model_version.version} "
+        f"with alias '{CHAMPION_ALIAS}'"
+    )
 
 
 if __name__ == "__main__":

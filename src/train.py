@@ -1,8 +1,14 @@
 """Hyperparameter search for RandomForest and GradientBoosting on the Wine dataset."""
+import os
+
+import mlflow
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 
 from src.data import RANDOM_STATE
+
+TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+EXPERIMENT_NAME = "Wine-Cultivar-Classification"
 
 PARAM_GRIDS = {
     "RandomForest": [
@@ -52,3 +58,9 @@ def cross_validate_model(model, X_train, y_train):
         metrics[f"train_{name}"] = float(train_scores.mean())
         metrics[f"val_{name}"] = float(val_scores.mean())
     return metrics
+
+
+def setup_mlflow(tracking_uri=TRACKING_URI, experiment_name=EXPERIMENT_NAME):
+    """Point MLflow at the SQLite backend and select (or create) the experiment."""
+    mlflow.set_tracking_uri(tracking_uri)
+    return mlflow.set_experiment(experiment_name)

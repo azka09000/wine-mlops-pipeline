@@ -5,7 +5,7 @@ import mlflow
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 
-from src.data import RANDOM_STATE
+from src.data import RANDOM_STATE, load_data, split_data, validate_data
 
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 EXPERIMENT_NAME = "Wine-Cultivar-Classification"
@@ -64,3 +64,48 @@ def setup_mlflow(tracking_uri=TRACKING_URI, experiment_name=EXPERIMENT_NAME):
     """Point MLflow at the SQLite backend and select (or create) the experiment."""
     mlflow.set_tracking_uri(tracking_uri)
     return mlflow.set_experiment(experiment_name)
+
+
+def run_experiment(model_family, config_index, params, X_train, y_train):
+    """Cross-validate one configuration and log it as its own MLflow run."""
+    run_name = f"{model_family}-config-{config_index}"
+    with mlflow.start_run(run_name=run_name) as run:
+        mlflow.set_tags({
+            "model_family": model_family,
+            "cv_folds": CV_FOLDS,
+            "random_state": RANDOM_STATE,
+        })
+        mlflow.log_params(params)
+
+        model = build_model(model_family, params)
+        metrics = cross_validate_model(model, X_train, y_train)
+        mlflow.log_metrics(metrics)
+
+    return run.info.run_id, metrics
+
+
+def main():
+    """Run the full hyperparameter search and log every configuration to MLflow."""
+    X, y = load_data()
+    validate_data(X, y)
+    X_train, _, y_train, _ = split_data(X, y)
+
+    setup_mlflow()
+
+    results = []
+    for model_family, grid in PARAM_GRIDS.items():
+        for config_index, params in enumerate(grid, start=1):
+            run_id, metrics = run_experiment(
+                model_family, config_index, params, X_train, y_train
+            )
+            results.append((model_family, config_index, run_id, metrics))
+            print(
+                f"{model_family}-config-{config_index}: "
+                f"val_f1_macro={metrics['val_f1_macro']:.4f}  run_id={run_id}"
+            )
+    return results
+
+
+if __name__ == "__main__":
+    main()
+    

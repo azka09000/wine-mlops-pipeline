@@ -2,6 +2,8 @@
 import os
 
 import mlflow
+import mlflow.sklearn
+from mlflow.models import infer_signature
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_validate
 
@@ -67,7 +69,7 @@ def setup_mlflow(tracking_uri=TRACKING_URI, experiment_name=EXPERIMENT_NAME):
 
 
 def run_experiment(model_family, config_index, params, X_train, y_train):
-    """Cross-validate one configuration and log it as its own MLflow run."""
+    """Cross-validate one configuration, fit it on the full train split, and log it."""
     run_name = f"{model_family}-config-{config_index}"
     with mlflow.start_run(run_name=run_name) as run:
         mlflow.set_tags({
@@ -77,9 +79,22 @@ def run_experiment(model_family, config_index, params, X_train, y_train):
         })
         mlflow.log_params(params)
 
-        model = build_model(model_family, params)
-        metrics = cross_validate_model(model, X_train, y_train)
+        metrics = cross_validate_model(
+            build_model(model_family, params), X_train, y_train
+        )
         mlflow.log_metrics(metrics)
+
+        model = build_model(model_family, params)
+        model.fit(X_train, y_train)
+
+        signature = infer_signature(X_train, model.predict(X_train))
+        input_example = X_train.head(5)
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            signature=signature,
+            input_example=input_example,
+        )
 
     return run.info.run_id, metrics
 

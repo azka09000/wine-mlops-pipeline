@@ -15,16 +15,17 @@ EXPERIMENT_NAME = "Wine-Cultivar-Classification"
 REGISTERED_MODEL_NAME = "WineClassifier"
 CHAMPION_ALIAS = "champion"
 
+# DEMO ONLY: deliberately crippled models to prove the quality gate blocks them.
 PARAM_GRIDS = {
     "RandomForest": [
-        {"n_estimators": 50, "max_depth": 3, "min_samples_split": 2},
-        {"n_estimators": 100, "max_depth": 5, "min_samples_split": 4},
-        {"n_estimators": 200, "max_depth": None, "min_samples_split": 2},
+        {"n_estimators": 1, "max_depth": 1, "min_samples_split": 2},
+        {"n_estimators": 1, "max_depth": 1, "min_samples_split": 4},
+        {"n_estimators": 1, "max_depth": 1, "min_samples_split": 8},
     ],
     "GradientBoosting": [
-        {"n_estimators": 50, "learning_rate": 0.1, "max_depth": 2},
-        {"n_estimators": 100, "learning_rate": 0.05, "max_depth": 3},
-        {"n_estimators": 150, "learning_rate": 0.1, "max_depth": 3},
+        {"n_estimators": 1, "learning_rate": 0.01, "max_depth": 1},
+        {"n_estimators": 1, "learning_rate": 0.02, "max_depth": 1},
+        {"n_estimators": 1, "learning_rate": 0.03, "max_depth": 1},
     ],
 }
 

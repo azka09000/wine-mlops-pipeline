@@ -11,7 +11,7 @@ from src import train
 from src.data import EXPECTED_N_FEATURES, load_data, split_data
 from src.evaluate import load_champion
 
-F1_THRESHOLD = 0.85
+F1_THRESHOLD = 0.88
 LATENCY_THRESHOLD_MS = 30.0
 VALID_CLASSES = {0, 1, 2}
 

@@ -128,13 +128,13 @@ def register_champion(run_id):
     return model_version
 
 
-def main():
+def main(tracking_uri=TRACKING_URI):
     """Run the search, log every configuration, and register the champion model."""
     X, y = load_data()
     validate_data(X, y)
     X_train, _, y_train, _ = split_data(X, y)
 
-    experiment = setup_mlflow()
+    experiment = setup_mlflow(tracking_uri)
 
     for model_family, grid in PARAM_GRIDS.items():
         for config_index, params in enumerate(grid, start=1):
